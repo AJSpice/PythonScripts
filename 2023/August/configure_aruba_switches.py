@@ -9,13 +9,11 @@ cwd = os.getcwd()
 #creates empty list for file names later in the combine files function
 final_configs = []
 
-#specifies path that working files should be placed
-output_directory = os.path.join(cwd, "working_configs")
-
-#defines the working configs, jinja and csv paths
-working_configs_path = os.path.join ('.' , "working_configs")
-csvs = os.path.join('.', "csv_files")
-j2s = os.path.join('.', "jinja_templates")
+#defines all the file paths used
+working_configs_path = os.path.join (cwd , "working_configs")
+final_configs_path = os.path.join(cwd , 'final_configs')
+csvs = os.path.join(cwd, "csv_files")
+j2s = os.path.join(cwd, "jinja_templates")
 
 #defines function to create switch vlan configs
 def vlan_config(output_dir):
@@ -194,7 +192,7 @@ def combine_files():
                     final_file_name = og_file_name[:11]
                 
                 #specify the output and input file path
-                output_file_path = os.path.join('.' , 'final_configs' , final_file_name + '.txt')
+                output_file_path = os.path.join(final_configs_path , final_file_name + '.txt')
                 input_file_path = os.path.join(working_configs_path, og_file_name)
 
                 #tries to open and write the files, throwing an error code if failing
@@ -213,22 +211,59 @@ def combine_files():
                 except Exception as e:
                     print("Error:", e)
 
-#prompts user for which model aruba needs to be configured
-aruba_model = input("Which model of aruba needs to be configured? (6100,6300): ")
+def delete_files():
+    for file in os.listdir(working_configs_path):
+        file_path = os.path.join(working_configs_path, file)
+        if os.path.isfile(file_path):
+            print (f"Removing {file}...")
+            os.remove(file_path)
+    for file in os.listdir(final_configs_path):
+        file_path = os.path.join(final_configs_path, file)
+        if os.path.isfile(file_path):
+            print (f"Removing {file}...")
+            os.remove(file_path)
 
-#check if its a proper model
-while aruba_model not in ('6100', '6300'):
-    aruba_model = input("This is an invalid input, please enter your Aruba Model: ")
+#prompts user if they want to delete files in th working and final config folders
+clean_slate = input(
+    f"This script will delete all files in the following two paths:\n"
+    f"{working_configs_path}\n{final_configs_path}\n"
+    f"Do you want to continue?\n"
+    "Press 'y' to delete all files and continue, "
+    "'n' to cancel the script: "
+)
 
-#based on user response, runs the base config for the model of aruba
-if int(aruba_model) == 6100:
-    base_config_6100(output_directory)
-elif int(aruba_model) == 6300:
-    base_config_6300(output_directory)
+while clean_slate.lower() != 'y' and clean_slate.lower() != 'n':
+    clean_slate = input(f"\n{clean_slate} is not a valid input.\n"
+    f"\n\nThis script will delete all files in the following two paths:\n"
+    f"{working_configs_path}\n{final_configs_path}\n"
+    f"Do you want to continue?\n"
+    "\nPress 'y' to delete all files and continue, "
+    "'n' to cancel the script: "                       
+)
     
-#specify the output directory and call functions
-vlan_config(output_directory)
-switchport_config(output_directory)
+if clean_slate.lower() == 'n':
+    exit
+else: 
+    print (f"Deleting files in {working_configs_path} and {final_configs_path}")
+    #runs the delete files function
+    delete_files()
+    
+    #prompts user for which model aruba needs to be configured
+    aruba_model = input("Which model of aruba needs to be configured? (6100,6300): ")
 
-#final function to combine files
-combine_files()
+    #check if its a proper model
+    while aruba_model not in ('6100', '6300'):
+        aruba_model = input("\nThis is an invalid input, please enter your Aruba Model: ")
+
+    #based on user response, runs the base config for the model of aruba
+    if int(aruba_model) == 6100:
+        base_config_6100(working_configs_path)
+    elif int(aruba_model) == 6300:
+        base_config_6300(working_configs_path)
+        
+    #specify the output directory and call functions
+    vlan_config(working_configs_path)
+    switchport_config(working_configs_path)
+
+    #final function to combine files
+    combine_files()
