@@ -1,0 +1,94 @@
+import os
+import csv
+
+# Gets the current working directory
+cwd = os.getcwd()
+
+# Defines the file paths used in the script
+bank_csv_path = os.path.join(cwd, 'bank_csv')
+ynab_csv_path = os.path.join(cwd, 'ynab_csv')
+
+# Defines function to find the bank CSV files and assigns them to a list
+def find_csv_files():
+    # Creates an empty list
+    bank_csvs = []
+
+    # Finds all CSV files in the path and puts them in the list
+    for file in os.listdir(bank_csv_path):
+        if file.endswith(".csv"):
+            bank_csvs.append(os.path.join(bank_csv_path, file))
+    return bank_csvs
+
+def main():
+    # The bank_csvs variable now contains the result of the find_csv_files function
+    bank_csvs = find_csv_files()
+
+    amex_csv_file = None
+
+    # Finds the Discover CSV in the list and assigns the non-Discover CSV to amex_csv_file
+    for bank_csv in bank_csvs:
+        if "Dis" in bank_csv:
+            discover_csv_file = bank_csv
+        else:
+            amex_csv_file = bank_csv
+
+    # Defines the full path to the Discover CSV file
+    discover_csv_file_path = os.path.join(cwd, 'bank_csv', discover_csv_file)
+    # Defines the full path to where the YNAB CSV should be saved
+    ynab_csv_file_path = os.path.join(ynab_csv_path, 'converted_discover.csv')
+
+    # Opens the CSV file to parse
+    with open(discover_csv_file_path, newline='') as f:
+        discover_csv_reader = csv.DictReader(f)
+
+        # Prepare YNAB CSV file with modified header names
+        ynab_header = ["Date", "Payee", "Memo", "Outflow", "Inflow"]
+        with open(ynab_csv_file_path, mode='w', newline='') as ynab_csv_file:
+            ynab_csv_writer = csv.writer(ynab_csv_file)
+            ynab_csv_writer.writerow(ynab_header)
+
+            for row in discover_csv_reader:
+                # Skip rows where Transaction Type is empty
+                if row["Transaction Type"]:
+                    date = row["Transaction Date"]
+                    payee = row["Transaction Description"]
+                    memo = row["Transaction Type"]
+                    outflow = row["Debit"]
+                    inflow = row["Credit"]
+
+                    ynab_csv_writer.writerow([date, payee, memo, outflow, inflow])
+
+    if amex_csv_file:
+        # Defines the full path to the Amex CSV file
+        amex_csv_file_path = os.path.join(cwd, 'bank_csv', amex_csv_file)
+        # Defines the full path to where the YNAB CSV should be saved
+        ynab_csv_file_path = os.path.join(ynab_csv_path, 'converted_amex.csv')
+
+        # Opens the CSV file to parse
+        with open(amex_csv_file_path, newline='') as f:
+            amex_csv_reader = csv.DictReader(f)
+
+            # Prepare YNAB CSV file with modified header names
+            ynab_header1 = ["Date", "Payee", "Memo", "Outflow", "Inflow"]
+            with open(ynab_csv_file_path, mode='w', newline='') as ynab_csv_file1:
+                ynab_csv_writer1 = csv.writer(ynab_csv_file1)
+                ynab_csv_writer1.writerow(ynab_header1)
+
+                for row in amex_csv_reader:
+                    if row["Description"]:
+                        date = row["Date"]
+                        payee = row["Description"]
+                        memo = row["Card Member"]
+                        amount = float(row["Amount"])  # Convert to float for arithmetic operations
+                        inflow = row["Account #"]
+                        outflow = row["Amount"]
+                        if "-" in row["Amount"]:
+                            outflow = 0  # Set outflow to 0 for rows where "-" is present
+                            inflow = -amount  # Subtract the negative value from amount for inflow
+                        else:
+                            outflow = amount  # Use the positive amount as outflow
+                            inflow = 0  # Set inflow to 0 for positive amounts
+                    ynab_csv_writer1.writerow([date, payee, memo, outflow, inflow])
+
+if __name__ == "__main__":
+    main()
